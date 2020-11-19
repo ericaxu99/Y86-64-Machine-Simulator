@@ -82,14 +82,14 @@ cache_t cache;
 
 /* 
  * Initialize the cache according to specified arguments
- * Called by cache-runner so do not modify the function signature
+ * Called by csim so do not modify the function signature
  * 
  * The code provided here shows you how to initialize a cache structure
  * defined above. It's not complete and feel free to modify/add code.
  */
 void initCache(int s_in, int b_in, int E_in)
 {
-    /* see cache-runner for the meaning of each argument */
+    /* see csim for the meaning of each argument */
     s = s_in;
     b = b_in;
     E = E_in;
@@ -177,10 +177,8 @@ bool handle_miss(word_t pos, void *block, word_t *evicted_pos, void *evicted_blo
 }
 
 /* TODO:
- * Get a byte from memory and write to dest
- * On hit, read from cache directly
- * On miss, call get_byte_val() and update cache
- * Return TRUE on success
+ * Get a byte from the cache and write it to dest.
+ * Preconditon: pos is contained within the cache.
  */
 void get_byte_cache(word_t pos, byte_t *dest)
 {
@@ -189,10 +187,8 @@ void get_byte_cache(word_t pos, byte_t *dest)
 
 
 /* TODO:
- * Get 8 bytes from memory and write to dest
- * On hit, read from cache directly
- * On miss, call get_byte_val() and update cache
- * Return TRUE on success
+ * Get 8 bytes from the cache and write it to dest.
+ * Preconditon: pos is contained within the cache.
  */
 void get_word_cache(word_t pos, word_t *dest) {
 
@@ -201,9 +197,8 @@ void get_word_cache(word_t pos, word_t *dest) {
 
 
 /* TODO:
- * Set a byte in cache, write through to memory with set_byte_val()
- * On miss, call get_byte_val() and update cache
- * Return TRUE on success
+ * Set 1 byte in the cache to val at pos.
+ * Preconditon: pos is contained within the cache.
  */
 void set_byte_cache(word_t pos, byte_t val)
 {
@@ -214,9 +209,8 @@ void set_byte_cache(word_t pos, byte_t val)
 
 
 /* TODO:
- * Set 8 bytes in cache, write through to memory with set_word_val()
- * On miss, call get_byte_val() and update cache
- * Return TRUE on success
+ * Set 8 bytes in the cache to val at pos.
+ * Preconditon: pos is contained within the cache.
  */
 void set_word_cache(word_t pos, word_t val)
 {
@@ -229,7 +223,7 @@ void set_word_cache(word_t pos, word_t val)
  * If it is not in cache, bring it in cache, increase miss count
  * Also increase eviction_count if a line is evicted
  * 
- * Called by cache-runner; no need to modify it if you implement
+ * Called by csim; no need to modify it if you implement
  * check_hit() and handle_miss()
  */
 void accessData(mem_addr_t addr)
