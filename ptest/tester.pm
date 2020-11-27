@@ -54,9 +54,11 @@ sub run_sim_test
     local ($tname) = @_;
     local ($cache) = $_[1];
     system "$yas $tname.ys" || die "Can't open file $tname.ys\n";
-    local $result = `$sim -v 0 -t $tname.yo`;
+    local $result = ``;
     if (testcache) {
         $result = `$sim -v 0 -t $cache $tname.yo`;
+    } else {
+        $result = `$sim -v 0 -t $tname.yo`;
     }
     if (!($result =~ "Succeed")) {
 	print "Test $tname $cache failed\n";
@@ -192,8 +194,3 @@ sub cmdline {
 
 # Perl gives error messages without the following line !?!
 $junk = 1;
-
-
-
-
-
