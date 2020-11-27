@@ -27,18 +27,19 @@
 #include <errno.h>
 #include "cache.h"
 
-//#define DEBUG_ON 
+//#define DEBUG_ON
 #define ADDRESS_LENGTH 64
 
 /* Globals set by command line args */
 int verbosity_cache = 0; /* print trace if set */
-int s = 0; /* set index bits */
-int b = 0; /* block offset bits */
-int E = 0; /* associativity */
+int s = 0;               /* set index bits */
+int b = 0;               /* block offset bits */
+int E = 0;               /* associativity */
 
 /* Derived from command line args */
 int S; /* number of sets */
 int B; /* block size (bytes) */
+unsigned long long counter;
 
 /* Counters used to record cache statistics in printSummary().
    test-cache uses these numbers to verify correctness of the cache. */
@@ -57,18 +58,21 @@ int eviction_count = 0;
  * are based on this cache structure.
  * lru is a counter used to implement LRU replacement policy.
  */
-typedef struct cache_line {
+typedef struct cache_line
+{
     char valid;
     mem_addr_t tag;
     unsigned long long int lru;
     byte_t *data;
 } cache_line_t;
 
-typedef struct cache_set {
+typedef struct cache_set
+{
     cache_line_t *lines;
 } cache_set_t;
 
-typedef struct cache {
+typedef struct cache
+{
     cache_set_t *sets;
 } cache_t;
 
@@ -89,22 +93,24 @@ void initCache(int s_in, int b_in, int E_in)
     s = s_in;
     b = b_in;
     E = E_in;
-    S = (unsigned int) pow(2, s);
-    B = (unsigned int) pow(2, b);
+    S = (unsigned int)pow(2, s);
+    B = (unsigned int)pow(2, b);
 
     int i, j;
-    cache.sets = (cache_set_t*) calloc(S, sizeof(cache_set_t));
-    for (i=0; i<S; i++){
-        cache.sets[i].lines = (cache_line_t*) calloc(E, sizeof(cache_line_t));
-        for (j=0; j<E; j++){
+    cache.sets = (cache_set_t *)calloc(S, sizeof(cache_set_t));
+    for (i = 0; i < S; i++)
+    {
+        cache.sets[i].lines = (cache_line_t *)calloc(E, sizeof(cache_line_t));
+        for (j = 0; j < E; j++)
+        {
             cache.sets[i].lines[j].valid = 0;
             cache.sets[i].lines[j].tag = 0;
             cache.sets[i].lines[j].lru = 0;
             cache.sets[i].lines[j].data = calloc(B, sizeof(byte_t));
         }
     }
-
     /* TODO: add more code for initialization */
+    counter = 0;
 }
 
 /* 
@@ -113,12 +119,24 @@ void initCache(int s_in, int b_in, int E_in)
 void freeCache()
 {
     int i;
-    for (i=0; i<S; i++){
-        free(cache.sets[i].lines);     
+    for (i = 0; i < S; i++)
+    {
+        free(cache.sets[i].lines);
     }
     free(cache.sets);
 }
 
+unsigned long long get_set(word_t addr)
+{
+    unsigned long long address = (unsigned long long)addr;
+    return (address >> b) << (64 - s) >> (64 - s);
+}
+
+unsigned long long get_tag(word_t addr)
+{
+    unsigned long long address = (unsigned long long)addr;
+    return (address >> b) >> s;
+}
 
 /* TODO:
  * Get the line for address contained in the cache
@@ -127,29 +145,69 @@ void freeCache()
  */
 cache_line_t *get_line(word_t addr)
 {
-    /* your implementation */
+    unsigned long long set = get_set(addr); //get set bits
+    unsigned long long tag = get_tag(addr); //get tag bits
+    for (int i = 0; i < E; i++)
+    {
+        if (cache.sets[set].lines[i].valid == 1 && cache.sets[set].lines[i].tag == tag)
+        {
+            return &cache.sets[set].lines[i];
+        }
+    }
     return NULL;
 }
-
-
 /* TODO:
  * Select the line to fill with the new cache line
  * Return the cache line selected to filled in by addr
  */
 cache_line_t *select_line(word_t addr)
 {
-    /* your implementation */
-    return NULL;
+    unsigned long long set = get_set(addr);
+    //unsigned long long tag = get_tag(addr);
+    //find empty line
+    for (int j = 0; j < E; j++)
+    {
+        if (cache.sets[set].lines[j].valid == 0)
+        {
+            //cache.sets[set].lines[j].valid = 1;
+            //cache.sets[set].lines[j].tag = tag;
+            return &cache.sets[set].lines[j];
+        }
+        // else if (cache.sets[set].lines[j].valid == 1 && cache.sets[set].lines[j].tag == tag)
+        // {
+        //     return &cache.sets[set].lines[j];
+        // }
+    }
+    //cant find empty space, get LRU
+    cache_line_t *min = &cache.sets[set].lines[0];
+    for (int i = 0; i < E; i++)
+    {
+        if (cache.sets[set].lines[i].lru < min->lru)
+        {
+            min = &cache.sets[set].lines[i];
+        }
+    }
+    return min;
 }
 
 /*  TODO:
  * Check if the address is hit in the cache, updating hit and miss data. 
  * Return True if pos hits in the cache.
  */
-bool check_hit(word_t pos) 
+bool check_hit(word_t pos)
 {
-    /* your implementation */
-    return false;
+    if (get_line(pos) != NULL) //hit valid=1 && tag=tag
+    {
+        hit_count++;
+        counter++;
+        get_line(pos)->lru = counter;
+        return true;
+    }
+    else //valid = 0
+    {
+        miss_count++;
+        return false;
+    }
 }
 
 /*  TODO:
@@ -157,13 +215,24 @@ bool check_hit(word_t pos)
  * are not NULL, copy the evicted data and address out.
  * If block is not NULL, copy the data from block into the cache line. 
  * Return True if a line was evicted.
- */ 
-bool handle_miss(word_t pos, void *block, word_t *evicted_pos, void *evicted_block) 
+ */
+bool handle_miss(word_t pos, void *block, word_t *evicted_pos, void *evicted_block)
 {
-    /* your implementation */
+    cache_line_t *targetline = select_line(pos);
+    counter++;
+    targetline->lru = counter;
+    if (targetline->valid == 1 && (targetline->tag = get_tag(pos)))
+    {
+        eviction_count++;
+    }
+    targetline->tag = get_tag(pos);
+    targetline->valid = 1;
+    if (block != NULL)
+    {
+        memcpy(targetline->data, block, sizeof(byte_t));
+    }
     return false;
 }
-
 
 /* 
  * Access data at memory address addr
@@ -176,6 +245,6 @@ bool handle_miss(word_t pos, void *block, word_t *evicted_pos, void *evicted_blo
  */
 void accessData(mem_addr_t addr)
 {
-    if(!check_hit(addr))
+    if (!check_hit(addr))
         handle_miss(addr, NULL, NULL, NULL);
 }
