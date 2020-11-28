@@ -163,20 +163,13 @@ cache_line_t *get_line(word_t addr)
 cache_line_t *select_line(word_t addr)
 {
     unsigned long long set = get_set(addr);
-    //unsigned long long tag = get_tag(addr);
     //find empty line
     for (int j = 0; j < E; j++)
     {
         if (cache.sets[set].lines[j].valid == 0)
         {
-            //cache.sets[set].lines[j].valid = 1;
-            //cache.sets[set].lines[j].tag = tag;
             return &cache.sets[set].lines[j];
         }
-        // else if (cache.sets[set].lines[j].valid == 1 && cache.sets[set].lines[j].tag == tag)
-        // {
-        //     return &cache.sets[set].lines[j];
-        // }
     }
     //cant find empty space, get LRU
     cache_line_t *min = &cache.sets[set].lines[0];
@@ -221,7 +214,7 @@ bool handle_miss(word_t pos, void *block, word_t *evicted_pos, void *evicted_blo
     cache_line_t *targetline = select_line(pos);
     counter++;
     targetline->lru = counter;
-    if (targetline->valid == 1 && (targetline->tag = get_tag(pos)))
+    if (targetline->valid == 1 && (((targetline->tag = get_tag(pos) && targetline->tag != 0)) || targetline->tag == 0))
     {
         eviction_count++;
     }
